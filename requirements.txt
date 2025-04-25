@@ -1,9 +1,7 @@
 streamlit
-tensorflow==2.11.0
-keras==2.11.0
-opencv-python
-pandas
-facenet-pytorch
 torch
 torchvision
+facenet-pytorch
 pillow
+pandas
+opencv-python
