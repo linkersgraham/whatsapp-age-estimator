@@ -4,4 +4,3 @@ torchvision
 facenet-pytorch
 pillow
 pandas
-opencv-python
