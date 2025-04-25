@@ -7,18 +7,17 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 from PIL import Image
 from facenet_pytorch import MTCNN
-import cv2
 
 # Load face detector
 @st.cache_resource
 def load_mtcnn():
     return MTCNN(keep_all=True, device='cpu')
 
-# Load pretrained ResNet model as a dummy age estimator (simulated output)
+# Load dummy age estimator
 @st.cache_resource
 def load_resnet_age_model():
     model = models.resnet18(pretrained=True)
-    model.fc = torch.nn.Linear(model.fc.in_features, 1)  # Output single float for age
+    model.fc = torch.nn.Linear(model.fc.in_features, 1)
     return model.eval()
 
 @st.cache_resource
@@ -33,8 +32,7 @@ resnet_model = load_resnet_age_model()
 imagenet_labels = load_imagenet_labels()
 
 st.title("📷 WhatsApp Age Estimator (PyTorch-based)")
-st.write("""Upload WhatsApp profile pictures named by phone number (e.g., 447123456789.jpg).
-This version estimates age using a lightweight PyTorch model and filters pets/flowers.""")
+st.write("Upload WhatsApp profile pictures named by phone number (e.g., 447123456789.jpg). This version uses PyTorch and avoids OpenCV for compatibility with Streamlit Cloud.")
 
 uploaded_files = st.file_uploader("Upload profile pictures", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
@@ -51,7 +49,7 @@ if uploaded_files:
         phone_number = file.name.split('.')[0]
         img = Image.open(file).convert('RGB')
 
-        # Classify overall image content
+        # Filter image content
         img_tensor = transform(img).unsqueeze(0)
         with torch.no_grad():
             classifier = models.resnet50(pretrained=True).eval()
@@ -64,7 +62,7 @@ if uploaded_files:
             filtered.append({"Phone Number": phone_number, "Category": label})
             continue
 
-        # Run face detection
+        # Face detection
         faces = mtcnn(img)
         if faces is None:
             results.append({"Phone Number": phone_number, "Estimated Age": "No face detected"})
@@ -74,16 +72,15 @@ if uploaded_files:
             age_text = "Multiple faces detected"
             for face in faces:
                 face_img = face.permute(1, 2, 0).numpy()
-                face_img = cv2.resize(face_img, (224, 224))
-                arr = transform(Image.fromarray((face_img * 255).astype(np.uint8))).unsqueeze(0)
-
+                face_img = Image.fromarray((face_img * 255).astype(np.uint8)).resize((224, 224))
+                arr = transform(face_img).unsqueeze(0)
                 with torch.no_grad():
                     age_pred = resnet_model(arr).item()
                 age_text += f", Est. Age: {int(np.clip(age_pred, 1, 100))}"
         else:
             face_img = faces.permute(1, 2, 0).numpy()
-            face_img = cv2.resize(face_img, (224, 224))
-            arr = transform(Image.fromarray((face_img * 255).astype(np.uint8))).unsqueeze(0)
+            face_img = Image.fromarray((face_img * 255).astype(np.uint8)).resize((224, 224))
+            arr = transform(face_img).unsqueeze(0)
             with torch.no_grad():
                 age_pred = resnet_model(arr).item()
             age_text = int(np.clip(age_pred, 1, 100))
@@ -102,4 +99,4 @@ if uploaded_files:
         st.dataframe(df_filtered)
         st.download_button("Download Filtered Items", df_filtered.to_csv(index=False), "filtered.csv")
 
-st.caption("Built with ❤️ using Streamlit + PyTorch")
+st.caption("Built with ❤️ using Streamlit + PyTorch (no OpenCV)")
