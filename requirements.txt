@@ -1,6 +1,6 @@
 streamlit
-keras==2.3.1
-tensorflow==2.2.0
+tensorflow==2.11.0
+keras==2.11.0
 opencv-python
 pandas
 facenet-pytorch
